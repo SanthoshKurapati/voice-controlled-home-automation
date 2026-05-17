@@ -1,0 +1,99 @@
+#include <WiFi.h>
+#include <SinricPro.h>
+#include <SinricProSwitch.h>
+#include <ESP32Servo.h>
+
+// 🔐 WiFi Credentials (CHANGE THIS)
+#define WIFI_SSID "Your_Wifi_Name"
+#define WIFI_PASS "Your_Wifi_Password"
+
+// 🔐 Sinric Pro Credentials
+#define APP_KEY     "Sinric_Pro App Key"
+#define APP_SECRET  "Sinric_Pro App secret"
+
+// 📱 Device IDs
+#define LIGHT_ID "xxxxxxxxxx"
+#define FAN_ID   "xxxxxxxxxx"
+#define DOOR_ID  "xxxxxxxxxx"
+
+// 📌 Pins (UNCHANGED)
+#define LIGHT_PIN 19
+#define FAN_PIN   18
+#define SERVO_PIN 5
+
+Servo doorServo;
+
+// 💡 Light Control
+bool onLightPowerState(const String &deviceId, bool &state) {
+  digitalWrite(LIGHT_PIN, state ? HIGH : LOW);
+  Serial.println(state ? "Light ON" : "Light OFF");
+  return true;
+}
+
+// 🌀 Fan Control
+bool onFanPowerState(const String &deviceId, bool &state) {
+  digitalWrite(FAN_PIN, state ? HIGH : LOW);
+  Serial.println(state ? "Fan ON" : "Fan OFF");
+  return true;
+}
+
+// 🚪 Door Control (Servo)
+bool onDoorPowerState(const String &deviceId, bool &state) {
+  if (state) {
+    doorServo.write(90);  // Open
+    Serial.println("Door Opened");
+  } else {
+    doorServo.write(0);   // Close
+    Serial.println("Door Closed");
+  }
+  return true;
+}
+
+// 🌐 WiFi Setup
+void setupWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("\n✅ Connected to WiFi");
+}
+
+// ☁️ Sinric Pro Setup
+void setupSinricPro() {
+  SinricProSwitch &light = SinricPro[LIGHT_ID];
+  SinricProSwitch &fan   = SinricPro[FAN_ID];
+  SinricProSwitch &door  = SinricPro[DOOR_ID];
+
+  light.onPowerState(onLightPowerState);
+  fan.onPowerState(onFanPowerState);
+  door.onPowerState(onDoorPowerState);
+
+  SinricPro.begin(APP_KEY, APP_SECRET);
+}
+
+// ⚙️ Setup
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(LIGHT_PIN, OUTPUT);
+  pinMode(FAN_PIN, OUTPUT);
+
+  // 🛠️ Servo setup (improved stability)
+  doorServo.attach(SERVO_PIN, 500, 2400);
+  doorServo.write(0); // Initially closed
+
+  setupWiFi();
+  setupSinricPro();
+}
+
+// 🔁 Loop
+void loop() {
+  SinricPro.handle();
+}
+
+
+
